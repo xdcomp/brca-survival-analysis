@@ -80,11 +80,84 @@ clin_cleaned["tumor_death"] = clin_cleaned.apply(cancer_death, axis=1)
 
 
 
+#==================== CALCULATE IMMUNE SCORES ==========================
+
+
+#we are using the exp data (patients are columns, genes are rows. we will transpose in later step, as analysis tools expect patients as rows)
+##print(exp.head())
 
 
 
 
-# notebook 2: Calculate immune scores
+#create list of immune genes to look for in the data
+immune_genes = ["CD8A", "CD8B", "GZMB", "PRF1", "IFNG",
+                  "FOXP3", "IL2RA", "CTLA4",
+                  "CD19", "MS4A1", "CD79A",
+                  "NCAM1", "NKG7", "KLRD1",
+                  "CD68", "CD163", "MRC1"]
+
+#check what genes are avaiable in the data
+available = exp["Hugo_Symbol"].isin(immune_genes) #all genes are available!
+
+#print("here's what's AVAILABLE:\n\n\n")
+print(exp[available]["Hugo_Symbol"].tolist())
+
+#cell types
+immune_signatures = {
+    "CD8_T_cells":  ["CD8A", "CD8B", "GZMB", "PRF1", "IFNG"],
+    "Tregs":        ["FOXP3", "IL2RA", "CTLA4"],
+    "B_cells":      ["CD19", "MS4A1", "CD79A"],
+    "NK_cells":     ["NCAM1", "NKG7", "KLRD1"],
+    "Macrophages":  ["CD68", "CD163", "MRC1"]
+}
+
+#filters exp dataframe down to only the 17 immune genes
+exp_immune = exp[exp["Hugo_Symbol"].isin(immune_genes)]
+
+
+#drop the Entrez_Gene_Id column, set gene names/Hugo_Symbol to row labels # now there are only gene names, patient ids, and genes
+exp_immune = exp_immune.set_index("Hugo_Symbol").drop(columns=["Entrez_Gene_Id"])
+
+
+#transpose the data so analysis tools may use the patient rows 
+exp_immune = exp_immune.T
+
+#print(exp_immune.head())
+#print(exp_immune.shape) # gives (1082,17). the original exp data i downloaded only contained 1082, might have to lookup how their data was lost in the cBioPortal webpage for data
+
+
+#log-transform the data ()
+import numpy as np
+
+# the +1 is to avoid log2(0) which gives negative infinity
+exp_immune_log = np.log2(exp_immune + 1)
+
+#calculate immune scores per cell type
+
+#for each cell type in dictionary
+for cell_type, genes in immune_signatures.items():# items = cell_type names
+
+    #create new column cell_type, and enter the average of gene expression for each cell type
+    exp_immune_log[cell_type] = exp_immune_log[genes].mean(axis=1) 
+
+#
+score_cols = list(immune_signatures.keys())
+
+immune_scores = exp_immune_log[score_cols]
+
+print(immune_scores.head())
+
+
+
+
+
+
+
+
+
+
+
+
 # Use ESTIMATE algorithm or immunedeconv package
 # This gives you "immune score" for each patient
 
@@ -99,3 +172,6 @@ clin_cleaned["tumor_death"] = clin_cleaned.apply(cancer_death, axis=1)
 # Final summary figure
 
 print("="*50)
+
+print(clin_cleaned["PATIENT_ID"].head())
+print(immune_scores.index[:5]) #looks like there is a mismatch in expression and clinical formatting of patient data "Clinical data has TCGA-3C-AAAU but expression data has TCGA-3C-AAAU-01."
