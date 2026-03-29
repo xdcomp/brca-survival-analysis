@@ -10,37 +10,37 @@ from lifelines import KaplanMeierFitter
 #==================== LOAD DATA (GATHERED FROM CBIOPORTAL) ==========================
 
 #expression data
-exp = pd.read_csv(
-    r"C:/Users/xavr/Documents/brca/data/data_mrna_seq_v2_rsem.txt",
-    sep="\t",
-    comment="#"
-)
+#exp = pd.read_csv(
+#    r"C:/Users/xavr/Documents/brca/data/data_mrna_seq_v2_rsem.txt",
+#    sep="\t",
+#    comment="#"
+#)
 
 #clinical data 
-clin = pd.read_csv(
-    r"C:/Users/xavr/Documents/brca/data/data_clinical_patient.txt",
+#clin = pd.read_csv(
+#    r"C:/Users/xavr/Documents/brca/data/data_clinical_patient.txt",
+#    sep="\t",
+#    comment="#"
+#)
+
+
+#for mac, make sure to move to 
+
+exp = pd.read_csv(r"/Users/user/Desktop/Bioinformatics/brca/data_mrna_seq_v2_rsem.txt",
     sep="\t",
     comment="#"
 )
-
-
-#for mac
-
-#exp = pd.read_csv(r"/Users/user/Desktop/Bioinformatics/brca/data_mrna_seq_v2_rsem.txt",
-#    sep="\t",
-#    comment="#"
-#)
-#clin = pd.read_csv(r"/Users/user/Desktop/Bioinformatics/brca/data_clinicaL_patient.txt",
-#    sep="\t",
-#    comment="#"
-#)
+clin = pd.read_csv(r"/Users/user/Desktop/Bioinformatics/brca/data_clinicaL_patient.txt",
+    sep="\t",
+    comment="#"
+)
 
 #==================== EXTRACT SURVIVAL DATA ==========================
 
 #we will use 3 survival variables from the patient data for survival analysis
-    #1. DSS_MONTHS, records time from initial diagnosis to time of cancer-specific death
-    #2. OS_STATUS, records patient death due to cancer and potentially non-cancer specific causes
-    #3. DSS_STATUS, records cancer-related death, but is ambiguous as it gives a dead or alive status for many patients. This will be used together with OS_STATUS to confirm cancer-related death 
+    #1. DSS_MONTHS - records time from initial diagnosis to time of cancer-specific death
+    #2. OS_STATUS - clear dead or alive status, with death to cancer and potentially non-cancer specific causes
+    #3. DSS_STATUS - either clear death with tumor or dead/alive status with tumor. This will be used together with OS_STATUS to confirm cancer-related death 
 
 #first check for missing values from our survival data (DSS_MONTHS, OS_STATUS, DSS_STATUS)
 print("CHECK FOR MISSING VALUES")
@@ -74,12 +74,6 @@ clin_cleaned["tumor_death"] = clin_cleaned.apply(cancer_death, axis=1)
 #print(clin_cleaned["tumor_death"].value_counts(dropna=False))
 
 
-
-
-
-
-
-
 #==================== CALCULATE IMMUNE SCORES ==========================
 
 
@@ -102,7 +96,7 @@ available = exp["Hugo_Symbol"].isin(immune_genes) #all genes are available!
 #print("here's what's AVAILABLE:\n\n\n")
 print(exp[available]["Hugo_Symbol"].tolist())
 
-#cell types
+#cell types dictionary
 immune_signatures = {
     "CD8_T_cells":  ["CD8A", "CD8B", "GZMB", "PRF1", "IFNG"],
     "Tregs":        ["FOXP3", "IL2RA", "CTLA4"],
@@ -132,37 +126,51 @@ import numpy as np
 # the +1 is to avoid log2(0) which gives negative infinity
 exp_immune_log = np.log2(exp_immune + 1)
 
-#calculate immune scores per cell type
+#calculate average immune scores per cell type
 
-#for each cell type in dictionary
-for cell_type, genes in immune_signatures.items():# items = cell_type names
+#for each cell type in cell types dictionary...
+for cell_type, genes in immune_signatures.items():# items = genes
 
-    #create new column cell_type, and enter the average of gene expression for each cell type
+    #create new column for each cell type, with row value being the averaged gene expression of iterated cell type
     exp_immune_log[cell_type] = exp_immune_log[genes].mean(axis=1) 
 
-#
+#pull keys (cell types) and convert to a list
 score_cols = list(immune_signatures.keys())
 
+#final dataframe, subset into the 5 existing cell_type score columns
 immune_scores = exp_immune_log[score_cols]
 
+#preview first 5 rows of scores
+print("printing immune SCORES")
 print(immune_scores.head())
+print("DONE PRINTING IMMUNE SCORES")
+
+#========================= MERGE THE DATA ===============================
+
+#before merging, we confirm patient IDs in clin_cleaned match ID format in immune_scores
+immune_scores.index = immune_scores.index.str.replace('-01', '', regex=False)
+
+#now we can merge
+merged = clin_cleaned.merge(immune_scores, left_on="PATIENT_ID", right_index=True, how="inner")
+print("printing merged shape")
+print(merged.shape)
+print("done")
+
+print("printing merged head")
+print(merged.head())
+print("done")
+
+
+print("PRINTING MERGE DATA")
+print(merged[["PATIENT_ID", "OS_MONTHS", "tumor_death", "CD8_T_cells", "Tregs", "B_cells", "NK_cells", "Macrophages"]].head())
+print("done thanks")
 
 
 
-
-
-
-
-
-
-
-
-
-# Use ESTIMATE algorithm or immunedeconv package
-# This gives you "immune score" for each patient
+#========================= SURVIVAL ANALYSIS ===============================
 
 # notebook 3: Survival analysis
-# Split patients into High vs Low immune groups
+# Split patients into High vs Low immune groups FOR EACH CELL TYPE
 # Plot Kaplan-Meier curves
 # Run Cox regression to check significance
 
