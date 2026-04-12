@@ -8,7 +8,7 @@ This project aims to investigate whether the level of immune cell infiltration i
 
 The tumor immune microenvironment plays a critical role in cancer progression and patient outcomes. Tumors that attract more immune cells — particularly cytotoxic T cells and NK cells — are generally associated with better prognosis, while immunosuppressive cell types like regulatory T cells (Tregs) can dampen anti-tumor immunity.
 
-This analysis asks a straightforward question: **do breast cancer patients with higher immune cell infiltration live longer?**
+This analysis offers to shed light on if breast cancer patients with higher immune cell infiltration live longer**
 
 To answer this, immune infiltration scores were calculated for five cell types using mRNA expression data, and Kaplan-Meier survival analysis was used to compare outcomes between patients with high vs. low infiltration.
 
